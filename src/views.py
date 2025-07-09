@@ -1,0 +1,100 @@
+import logging
+from datetime import datetime
+from typing import Dict, List
+
+import pandas as pd
+
+from src.data_loader import load_transactions
+
+
+def home_page(target_date: str) -> Dict:
+    """Генерирует JSON-данные для главной страницы."""
+    try:
+        transactions = load_transactions("data/operations.xlsx")
+        greeting = _generate_greeting(target_date)
+        cards_data = _process_cards(transactions, target_date)
+        top_transactions = _get_top_transactions(transactions, target_date, n=5)
+        currency_rates = _fetch_currency_rates()
+        stock_prices = _fetch_stock_prices()
+        print("Карты после обработки:", cards_data)  # временный вывод перед return
+
+        return {
+            "greeting": greeting,
+            "cards": cards_data,
+            "top_transactions": top_transactions,
+            "currency_rates": currency_rates,
+            "stock_prices": stock_prices,
+        }
+    except Exception as e:
+        logging.error(f"Ошибка в home_page: {e}")
+        raise
+
+
+def _generate_greeting(target_date: str) -> str:
+    """Определяет приветствие по времени."""
+    time = datetime.strptime(target_date, "%Y-%m-%d %H:%M:%S").time()
+    if 5 <= time.hour < 12:
+        return "Доброе утро"
+    elif 12 <= time.hour < 18:
+        return "Добрый день"
+    elif 18 <= time.hour < 23:
+        return "Добрый вечер"
+    return "Доброй ночи"
+
+
+def _process_cards(transactions: pd.DataFrame, target_date: str) -> List[Dict]:
+    """Считает общие траты и кешбэк по картам."""
+    try:
+        filtered = transactions[
+            (transactions["Дата операции"] <= pd.to_datetime(target_date))
+            & (transactions["Статус"] == "OK")
+            & (transactions["Номер карты"].notna())
+        ]
+
+        cards = (
+            filtered.groupby("Номер карты")
+            .agg({"Сумма платежа": lambda x: abs(x.sum()), "Кэшбэк": "sum"})
+            .reset_index()
+        )
+
+        return [
+            {"last_digits": str(card)[-4:], "total_spent": round(total, 2), "cashback": round(cashback, 2)}
+            for card, total, cashback in cards.itertuples(index=False)
+        ]
+    except Exception as e:
+        logging.error(f"Ошибка в _process_cards: {e}")
+        raise
+
+
+def _get_top_transactions(transactions: pd.DataFrame, target_date: str, n: int = 5) -> List[Dict]:
+    filtered = transactions[
+        (transactions["Дата операции"] <= pd.to_datetime(target_date)) & (transactions["Сумма платежа"] < 0)
+    ].nlargest(n, "Сумма платежа", keep="all")
+
+    # Преобразуем Timestamp в строку
+    result = filtered[["Дата операции", "Сумма платежа", "Категория", "Описание"]].to_dict("records")
+
+    for item in result:
+        item["Дата операции"] = item["Дата операции"].strftime("%Y-%m-%d %H:%M:%S")
+
+    return result
+
+
+def _fetch_currency_rates() -> List[Dict]:
+    """Получает курсы валют из API."""
+    try:
+        # Заглушка - замените на реальный API-вызов
+        return [{"currency": "USD", "rate": 75.5}, {"currency": "EUR", "rate": 90.2}]
+    except Exception as e:
+        logging.error(f"Ошибка при получении курсов валют: {e}")
+        return []
+
+
+def _fetch_stock_prices() -> List[Dict]:
+    """Получает цены акций из API."""
+    try:
+        # Заглушка - замените на реальный API-вызов
+        return [{"stock": "AAPL", "price": 150.0}, {"stock": "TSLA", "price": 250.0}]
+    except Exception as e:
+        logging.error(f"Ошибка при получении цен акций: {e}")
+        return []
