@@ -1,19 +1,21 @@
-from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 
-from src.views import home_page
-from src.views import _generate_greeting
+from src.views import _generate_greeting, home_page
 
 
-@pytest.mark.parametrize("time,expected", [
-    ("04:00:00", "Доброй ночи"),
-    ("08:00:00", "Доброе утро"),
-    ("14:00:00", "Добрый день"),
-    ("20:00:00", "Добрый вечер"),
-    ("23:59:59", "Доброй ночи"),
-])
+@pytest.mark.parametrize(
+    "time,expected",
+    [
+        ("04:00:00", "Доброй ночи"),
+        ("08:00:00", "Доброе утро"),
+        ("14:00:00", "Добрый день"),
+        ("20:00:00", "Добрый вечер"),
+        ("23:59:59", "Доброй ночи"),
+    ],
+)
 def test_generate_greeting(time, expected):
     date_str = f"2023-01-01 {time}"
     assert _generate_greeting(date_str) == expected
@@ -45,15 +47,38 @@ def test_home_page(sample_data, monkeypatch):
     assert all(isinstance(card["total_spent"], float) for card in result["cards"])
 
 
-def test_fetch_currency_rates():
-    from src.views import _fetch_currency_rates
-    result = _fetch_currency_rates()
-    assert isinstance(result, list)
-    assert all("currency" in item and "rate" in item for item in result)
+@patch("requests.get")
+def test_fetch_currency_rates(mock_get):
+    # Настраиваем мок-ответ
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"rates": {"USD": 0.013, "EUR": 0.011}, "base": "RUB"}
+    mock_get.return_value = mock_response
+
+    # Тестируем с подмененным API-ключом
+    with patch.dict("src.config.API_KEYS", {"CURRENCY_API_KEY": "test_key"}):
+        from src.views import _fetch_currency_rates
+
+        result = _fetch_currency_rates()
+
+        assert len(result) == 2
+        assert result[0]["currency"] == "USD"
+        assert isinstance(result[0]["rate"], float)
+        assert result[1]["currency"] == "EUR"
 
 
 def test_fetch_stock_prices():
     from src.views import _fetch_stock_prices
+
     result = _fetch_stock_prices()
     assert isinstance(result, list)
     assert all("stock" in item and "price" in item for item in result)
+
+
+@patch("requests.get")
+def test_fetch_currency_rates_error(mock_get):
+    mock_get.side_effect = Exception("API error")
+    with patch.dict("src.config.API_KEYS", {"CURRENCY_API_KEY": "test_key"}):
+        from src.views import _fetch_currency_rates
+
+        result = _fetch_currency_rates()
+        assert result == []

@@ -1,19 +1,16 @@
 import os
-from unittest.mock import patch, MagicMock
-import pytest
-from src.config import API_KEYS
+from unittest.mock import patch
 
 
 def test_api_keys_loading():
     # Тест с явной передачей переменных
-    with patch.dict(os.environ, {
-        "CURRENCY_API_KEY": "test_currency",
-        "STOCK_API_KEY": "test_stock"
-    }):
+    with patch.dict(os.environ, {"CURRENCY_API_KEY": "test_currency", "STOCK_API_KEY": "test_stock"}):
         # Мокаем load_dotenv чтобы он не перезаписывал наши переменные
         with patch("src.config.load_dotenv", return_value=None):
             from importlib import reload
+
             from src import config
+
             reload(config)
 
             assert config.API_KEYS["CURRENCY_API_KEY"] == "test_currency"
@@ -30,7 +27,9 @@ def test_missing_keys():
             # Мокаем os.getenv чтобы возвращал None независимо от реального окружения
             with patch("os.getenv", return_value=None):
                 from importlib import reload
+
                 from src import config
+
                 reload(config)
 
                 assert config.API_KEYS["CURRENCY_API_KEY"] is None
