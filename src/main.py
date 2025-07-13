@@ -1,25 +1,28 @@
 import json
-from datetime import datetime
+import sys
+from pathlib import Path
 
+
+sys.path.append(str(Path(__file__).parent.parent))
+
+
+from src.data_loader import load_transactions
 from src.views import home_page
 
 
-def convert_to_serializable(obj):
-    """Конвертирует объекты для JSON-сериализации"""
-    if isinstance(obj, (datetime, pd.Timestamp)):
-        return obj.strftime("%Y-%m-%d %H:%M:%S")
-    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-
-
 def main():
+    """Основная функция запуска приложения"""
     try:
-        result = home_page("2021-12-31 12:00:00")
-        print(json.dumps(result, indent=2, ensure_ascii=False, default=convert_to_serializable))
+        # Пример использования
+        result = home_page("2023-01-01 12:00:00")
+        print(json.dumps(result, indent=2, ensure_ascii=False, default=str))  # Конвертирует datetime в строки
+
     except Exception as e:
-        print(f"Ошибка при выполнении: {e}")
+        print(f"Ошибка при выполнении: {str(e)}")
+        return 1
+
+    return 0
 
 
 if __name__ == "__main__":
-    import pandas as pd  # Добавляем импорт pandas
-
-    main()
+    sys.exit(main())

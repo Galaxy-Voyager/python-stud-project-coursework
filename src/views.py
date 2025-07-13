@@ -3,7 +3,9 @@ from datetime import datetime
 from typing import Dict, List
 
 import pandas as pd
+import requests
 
+from src.config import API_KEYS
 from src.data_loader import load_transactions
 
 
@@ -81,20 +83,43 @@ def _get_top_transactions(transactions: pd.DataFrame, target_date: str, n: int =
 
 
 def _fetch_currency_rates() -> List[Dict]:
-    """Получает курсы валют из API."""
+    """Получает актуальные курсы валют через API"""
     try:
-        # Заглушка - замените на реальный API-вызов
-        return [{"currency": "USD", "rate": 75.5}, {"currency": "EUR", "rate": 90.2}]
+        if not API_KEYS.get("CURRENCY_API_KEY"):
+            raise ValueError("Не задан API ключ для курсов валют")
+
+        response = requests.get(
+            "https://api.exchangerate-api.com/v4/latest/RUB",
+            params={"access_key": API_KEYS["CURRENCY_API_KEY"]},
+            timeout=5,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        return [
+            {"currency": "USD", "rate": round(1 / data["rates"]["USD"], 2)},
+            {"currency": "EUR", "rate": round(1 / data["rates"]["EUR"], 2)},
+        ]
     except Exception as e:
-        logging.error(f"Ошибка при получении курсов валют: {e}")
-        return []
+        logging.error(f"Ошибка получения курсов валют: {str(e)}")
+        return []  # Возвращаем пустой список при ошибке
 
 
 def _fetch_stock_prices() -> List[Dict]:
-    """Получает цены акций из API."""
+    """Получает цены акций через Alpha Vantage API"""
     try:
-        # Заглушка - замените на реальный API-вызов
-        return [{"stock": "AAPL", "price": 150.0}, {"stock": "TSLA", "price": 250.0}]
+        stocks = ["AAPL", "MSFT", "GOOGL"]  # Примеры тикеров
+        prices = []
+
+        for stock in stocks:
+            response = requests.get(
+                "https://www.alphavantage.co/query",
+                params={"function": "GLOBAL_QUOTE", "symbol": stock, "apikey": API_KEYS["STOCK_API_KEY"]},
+            )
+            data = response.json()
+            prices.append({"stock": stock, "price": float(data["Global Quote"]["05. price"])})
+
+        return prices
     except Exception as e:
-        logging.error(f"Ошибка при получении цен акций: {e}")
+        logging.error(f"Ошибка получения цен акций: {e}")
         return []

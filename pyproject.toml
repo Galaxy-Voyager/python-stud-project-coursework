@@ -18,6 +18,9 @@ black = "^23.7.0"
 isort = "^5.12.0"
 mypy = "^1.5.0"
 
+[tool.poetry.group.dev.dependencies]
+types-requests = "^2.32.4.20250611"
+
 [tool.black]
 line-length = 119
 exclude = '''
