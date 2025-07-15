@@ -42,20 +42,25 @@ def find_phone_transactions(transactions: pd.DataFrame) -> List[Dict]:
         return []
 
 
-def calculate_investment(transactions: pd.DataFrame, round_limit: int = 10) -> float:
+def calculate_investment(transactions: pd.DataFrame, month: str, round_limit: int = 10) -> float:
     """
     Расчет суммы для инвесткопилки через округление
 
     Args:
         transactions: DataFrame с транзакциями
+        month: Месяц расчета в формате 'YYYY-MM'
         round_limit: Шаг округления (10, 50, 100)
 
     Returns:
         Сумма для инвесткопилки
     """
     try:
+        # Фильтрация по месяцу
+        transactions = transactions[transactions["Дата операции"].dt.strftime("%Y-%m") == month]
+
+        # Расчет округления
         rounded = (transactions["Сумма платежа"] / round_limit).abs().round() * round_limit
         return (rounded - transactions["Сумма платежа"].abs()).sum()
-    except Exception as e:
+    except (KeyError, TypeError) as e:
         logging.error(f"Ошибка расчета инвесткопилки: {e}")
         return 0.0

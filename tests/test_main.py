@@ -12,3 +12,9 @@ def test_main_success():
 def test_main_error():
     with patch("src.views.home_page", side_effect=Exception("Test error")):
         main()
+
+
+def test_main_file_not_found():
+    with patch("builtins.open", side_effect=FileNotFoundError):
+        result = main()
+        assert result == 1
