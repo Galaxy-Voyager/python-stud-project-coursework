@@ -40,20 +40,29 @@ def spending_by_category(transactions: pd.DataFrame, category: str, date: Option
         return {}
 
 
-def spending_by_weekday(transactions: pd.DataFrame) -> Dict:
+def spending_by_weekday(transactions: pd.DataFrame, date: Optional[str] = None) -> Dict:
     """
-    Анализ трат по дням недели
+    Анализ трат по дням недели за последние 3 месяца
 
     Args:
         transactions: DataFrame с транзакциями
+        date: Опорная дата (если None - текущая дата)
 
     Returns:
         Словарь со средними тратами по дням недели
     """
     try:
-        df = transactions.copy()
-        df["day_of_week"] = df["Дата операции"].dt.day_name()
-        return df.groupby("day_of_week")["Сумма платежа"].mean().to_dict()
+        end_date = pd.to_datetime(date) if date else pd.to_datetime(datetime.now())
+        start_date = end_date - timedelta(days=90)
+
+        # Фильтрация по периоду
+        period_trans = transactions[
+            (transactions["Дата операции"] >= start_date) & (transactions["Дата операции"] <= end_date)
+        ].copy()
+
+        # Группировка по дням недели
+        period_trans.loc[:, "day_of_week"] = period_trans["Дата операции"].dt.day_name()
+        return period_trans.groupby("day_of_week")["Сумма платежа"].mean().to_dict()
     except Exception as e:
         logging.error(f"Ошибка анализа по дням недели: {e}")
         return {}
